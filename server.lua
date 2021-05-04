@@ -342,7 +342,7 @@ AddEventHandler('m3:admin:server:wipePlayer', function(target, steamhex)
             notify(src, 'inform', '#'..tonumber(target)..' - '..tName..' sunucudan atıldı ve karakteri silindi.')
             discordLog(src, 'wipeplayer', target)
 
-            DropPlayer(target, '[aiakos] - '..GetPlayerName(src)..' tarafından sunucudan atıldınız.\nSebep: wipe')
+            DropPlayer(target, '[m3_admin] - '..GetPlayerName(src)..' tarafından sunucudan atıldınız.\nSebep: wipe')
 
             for i = 1, #sqltables, 1 do
                 local sqlquery = 'DELETE FROM '..sqltables[i].tablename..' WHERE '..sqltables[i].identifierparameter..' = @'..sqltables[i].identifierparameter
