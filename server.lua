@@ -547,7 +547,7 @@ AddEventHandler('m3:admin:server:sendScreenshot', function(url, adminName, admin
                     ['icon_url'] = 'https://i.imgyukle.com/2020/05/11/r8k2GI.png'
                 },
                 ['footer'] = {
-                    ['text'] = 'dev. by KanOX - EWG Roleplay İçin Yapılmıştır'
+                    ['text'] = 'dev. by morpheause#3333 - cloudfivem.com'
                 },
                 ['color'] = 1942002,
                 ['timestamp'] = os.date('!%Y-%m-%dT%H:%M:%SZ')
@@ -761,7 +761,7 @@ function discordLog(src, action, target, args1, args2, args3, args4)
                     ['icon_url'] = 'https://i.imgyukle.com/2020/05/11/r8k2GI.png'
                 },
                 ['footer'] = {
-                    ['text'] = 'dev. by KanOX - EWG ROLEPLAY İÇİN TASARLANMIŞTIR.'
+                    ['text'] = 'dev. by morpheause#3333 - cloudfivem.com'
                 },
                 ['color'] = 1942002,
                 ['timestamp'] = os.date('!%Y-%m-%dT%H:%M:%SZ')
@@ -823,7 +823,7 @@ function discordselfLog(src, action, args1, args2, args3, args4, args5, args6)
                     ['icon_url'] = 'https://i.imgyukle.com/2020/05/11/r8k2GI.png'
                 },
                 ['footer'] = {
-                    ['text'] = 'dev. by KanOX- EWG İÇİN TASARLANDI.'
+                    ['text'] = 'dev. by morpheause#3333 - cloudfivem.com'
                 },
                 ['color'] = 1942002,
                 ['timestamp'] = os.date('!%Y-%m-%dT%H:%M:%SZ')
