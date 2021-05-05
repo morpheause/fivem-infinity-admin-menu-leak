@@ -52,7 +52,7 @@ TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
 
 local admintable = {}
 
-local permissions = {'fullperm', 'bringall', 'allkick', 'reviveall', 'wipeplayer', 'unban', 'privatemessage', 'tp', 'timeweather', 'skin', 'cleararea', 'screenshot', 'setgps', 'spectate', 'revive', 'heal', 'openinv', 'goto', 'bring', 'freeze', 'kill', 'kick', 'ban', 'giveitem', 'givevehicle', 'giveweapon', 'noclip', 'invisibility'}
+local permissions = {'fullperm', 'bringall', 'allkick', 'reviveall', 'setjob', 'wipeplayer', 'unban', 'privatemessage', 'tp', 'timeweather', 'skin', 'cleararea', 'screenshot', 'setgps', 'spectate', 'revive', 'heal', 'openinv', 'goto', 'bring', 'freeze', 'kill', 'kick', 'ban', 'giveitem', 'givevehicle', 'giveweapon', 'noclip', 'invisibility'}
 
 RegisterServerEvent('m3:admin:server:playerSpawned')
 AddEventHandler('m3:admin:server:playerSpawned', function()
@@ -413,17 +413,50 @@ AddEventHandler('m3:admin:server:unban', function(banid)
     end
 end)
 
+RegisterServerEvent('m3:admin:server:giveJob')
+AddEventHandler('m3:admin:server:giveJob', function(target, jobname, jobgrade)
+    local src = source
+
+    if havePermission(src, 'setjob') then
+        if ESX.DoesJobExist(jobname, tonumber(jobgrade)) then
+            local tPlayer = ESX.GetPlayerFromId(target)
+            tPlayer.setJob(jobname, tonumber(jobgrade))
+            notify(src, 'inform', 'ID '..tonumber(target)..' '..jobname..'-'..jobgrade..' verildi.')
+            discordLog(src, 'setjob', target, 'Meslek İsmi:', jobname, 'Rütbe: ', jobgrade)
+        else
+            notify(src, 'error', 'Meslek bulunamadı!')
+        end
+    else
+        unauthorizedLog(src, 'setjob')
+    end
+end)
+
 RegisterServerEvent('m3:admin:server:giveItem')
 AddEventHandler('m3:admin:server:giveItem', function(target, itemName, itemCount)
     local src = source
 
     if havePermission(src, 'giveitem') then
         local tPlayer = ESX.GetPlayerFromId(target)
-        tPlayer.addInventoryItem(itemName, itemCount)
-        notify(src, 'inform', 'ID '..tonumber(target)..' '..itemCount..'x '..itemName..' verildi.')
-        discordLog(src, 'giveitem', target, 'Eşya ismi:', itemName, 'Eşya Sayısı:', itemCount)
+        if tPlayer then
+            tPlayer.addInventoryItem(itemName, itemCount)
+            notify(src, 'inform', 'ID '..tonumber(target)..' '..itemCount..'x '..itemName..' verildi.')
+            discordLog(src, 'giveitem', target, 'Eşya ismi:', itemName, 'Eşya Sayısı:', itemCount)
+        end
     else
         unauthorizedLog(src, 'giveitem')
+    end
+end)
+
+RegisterServerEvent('m3:admin:server:deleteAllVehicles')
+AddEventHandler('m3:admin:server:deleteAllVehicles', function()
+    local src = source
+
+    if havePermission(src, 'cleararea') then
+        TriggerClientEvent('m3:admin:client:deleteAllVehicles', -1)
+        notify(src, 'inform', 'Tum surucusuz araclar temizlendi.')
+        discordselfLog(src, 'clearvehicles')
+    else
+        unauthorizedLog(src, 'clearvehicles')
     end
 end)
 
@@ -493,8 +526,8 @@ AddEventHandler('m3:admin:server:skin', function(target)
     local src = source
 
     if havePermission(src, 'skin') then
-        -- TriggerClientEvent('esx_skin:openSaveableMenu', target)
-		TriggerClientEvent('mpcreator:OpenMenu', target)
+        TriggerClientEvent('esx_skin:openSaveableMenu', target)
+		-- TriggerClientEvent('mpcreator:OpenMenu', target)
         notify(src, 'inform', 'ID '..tonumber(target)..' skin menüsü açıldı.')
         discordLog(src, 'skin', target)
     else
@@ -715,6 +748,19 @@ AddEventHandler('m3:admin:server:reviveAll', function()
         notify(src, 'inform', 'Sunucudaki herkes iyileştirildi.')
     else
         unauthorizedLog(src, 'reviveall')
+    end
+end)
+
+RegisterServerEvent('m3:admin:server:giveVehicleWithoutSaving')
+AddEventHandler('m3:admin:server:giveVehicleWithoutSaving', function(target, model)
+    local src = source
+
+    if havePermission(src, 'car') then
+        TriggerClientEvent('esx:spawnVehicle', target, model)
+        notify(src, 'inform', 'ID '..tonumber(target)..' '..model..' verildi.')
+        discordLog(src, 'car', target, 'Araç Modeli:', model)
+    else
+        unauthorizedLog(src, 'car')
     end
 end)
 
