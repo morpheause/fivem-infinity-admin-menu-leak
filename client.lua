@@ -43,7 +43,7 @@ local showcoords = false
 local currentPlayer = nil
 Citizen.CreateThread(function()
     local openKey = tonumber(GetConvar('m3_admin_menuButton', 10))
-	WarMenu.CreateMenu('menu', '') ---Menu name
+	WarMenu.CreateMenu('menu', 'm3 Admin') ---Menu name
 	WarMenu.CreateSubMenu('players', 'menu', 'OYUNCULAR')
     WarMenu.CreateSubMenu('selfoption', 'menu', 'KISISEL SECENEKLER')
     WarMenu.CreateSubMenu('serveroption', 'menu', 'SUNUCU SECENEKLERI')
@@ -302,6 +302,8 @@ Citizen.CreateThread(function()
                     TriggerServerEvent('m3:admin:server:allBring', coord)
                 elseif havePermission('reviveall') and WarMenu.Button('Herkesi İyileştir(revive)') then
                     TriggerServerEvent('m3:admin:server:reviveAll')
+                elseif havePermission('bringall') and WarMenu.Button('Tüm Araçları Sil') then
+                    TriggerServerEvent('m3:admin:server:deleteAllVehicles')
                 elseif havePermission('wipeplayer') and WarMenu.Button('~r~Karakter Sil(offlinewipe)') then
                     local steamhex = keyboardInput('Steam(HEX): Örnek: steam:1100041123251e7', '', 21)
 
@@ -576,6 +578,20 @@ AddEventHandler('m3:admin:client:clearArea', function(coord)
     ClearAreaOfEverything(coord.x, coord.y, coord.z, 100.0, 0, 0, 0, 0)
 end)
 
+RegisterNetEvent('m3:admin:client:deleteAllVehicles')
+AddEventHandler('m3:admin:client:deleteAllVehicles', function()
+    for vehicle in EnumerateVehicles() do
+        if (not IsPedAPlayer(GetPedInVehicleSeat(vehicle, -1))) then 
+            SetVehicleHasBeenOwnedByPlayer(vehicle, false) 
+            SetEntityAsMissionEntity(vehicle, false, false) 
+            DeleteVehicle(vehicle)
+            if (DoesEntityExist(vehicle)) then 
+                DeleteVehicle(vehicle) 
+            end
+        end
+    end
+end)
+
 --givevehicle
 RegisterNetEvent('m3:admin:client:spawnVehicle')
 AddEventHandler('m3:admin:client:spawnVehicle', function(vehiclemodel, type)
@@ -593,6 +609,46 @@ AddEventHandler('m3:admin:client:spawnVehicle', function(vehiclemodel, type)
 		TriggerServerEvent('m3:vehiclelock:plateRegister', newPlate)
 	end)
 end)
+
+local entityEnumerator = {
+    __gc = function(enum)
+        if enum.destructor and enum.handle then
+            enum.destructor(enum.handle)
+        end
+        enum.destructor = nil
+        enum.handle = nil
+    end
+}
+  
+local function EnumerateEntities(initFunc, moveFunc, disposeFunc)
+    return coroutine.wrap(function()
+        local iter, id = initFunc()
+        if not id or id == 0 then
+            disposeFunc(iter)
+            return
+        end
+      
+        local enum = {handle = iter, destructor = disposeFunc}
+        setmetatable(enum, entityEnumerator)
+        
+        local next = true
+        repeat
+            coroutine.yield(id)
+            next, id = moveFunc(iter)
+        until not next
+        
+        enum.destructor, enum.handle = nil, nil
+        disposeFunc(iter)
+    end)
+end
+  
+function EnumerateVehicles()
+    return EnumerateEntities(FindFirstVehicle, FindNextVehicle, EndFindVehicle)
+end
+
+function EnumeratePeds()
+	return EnumerateEntities(FindFirstPed, FindNextPed, EndFindPed)
+end
 
 
 local NumberCharset = {}
@@ -722,5 +778,312 @@ Citizen.CreateThread(function()
         hour = math.floor(((baseTime+timeOffset)/60)%24)
         minute = math.floor((baseTime+timeOffset)%60)
         NetworkOverrideClockTime(hour, minute, 0)
+    end
+end)
+
+--commands
+RegisterCommand('tp', function(source, args)
+    if havePermission('tp') then
+        local x = tonumber(args[1])
+        local y = tonumber(args[2])
+        local z = tonumber(args[3])
+        if x ~= nil and y ~= nil and z ~= nil and x ~= '' and z ~= '' and z ~= '' then
+            SetEntityCoords(PlayerPedId(), x, y, z, 0, 0, 0, 0)
+            TriggerServerEvent('m3:admin:server:selfLog', 'tp')
+        else
+            notify('error', 'x y z boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('tpm', function(source, args)
+    if havePermission('tp') then
+        local WaypointHandle = GetFirstBlipInfoId(8)
+
+        if DoesBlipExist(WaypointHandle) then
+            local waypointCoords = GetBlipInfoIdCoord(WaypointHandle)
+
+            for height = 1, 1000 do
+                SetPedCoordsKeepVehicle(PlayerPedId(), waypointCoords["x"], waypointCoords["y"], height + 0.0)
+
+                local foundGround, zPos = GetGroundZFor_3dCoord(waypointCoords["x"], waypointCoords["y"], height + 0.0)
+
+                if foundGround then
+                    SetPedCoordsKeepVehicle(PlayerPedId(), waypointCoords["x"], waypointCoords["y"], height + 0.0)
+                    local coord = GetEntityCoords(PlayerPedId())
+                    RequestCollisionAtCoord(coord.x, coord.y, coord.z)
+
+                    break
+                end
+
+                Citizen.Wait(5)
+            end
+            TriggerServerEvent('m3:admin:server:selfLog', 'tpm')
+        else
+            notify('error', 'Herhangi bir yeri işaretlemediniz!')
+        end
+    end
+end)
+
+RegisterCommand('setjob', function(source, args)
+    if havePermission('setjob') then
+        local id = args[1]
+        local jobname = args[2]
+        local gradelevel = tonumber(args[3])
+
+        if id == nil and id == '' then
+            notify('error', 'ID kısmı boş olamaz!')
+            return
+        end
+
+        if jobname == nil and jobname == '' then
+            notify('error', 'Meslek ismi boş olamaz!')
+            return
+        end
+
+        if gradelevel == nil and gradelevel == '' then
+            notify('error', 'Rütbe kısmı boş olamaz!')
+            return
+        end
+
+        if id ~= nil or id ~= '' then
+            TriggerServerEvent('m3:admin:server:giveJob', id, jobname, gradelevel)
+        end
+    end
+end)
+
+RegisterCommand('car', function(source, args)
+    if havePermission('car') then
+        local model = args[1]
+        local id = args[2]
+
+        if model ~= nil and model ~= '' then
+            if id ~= nil and id ~= '' then
+                TriggerServerEvent('m3:admin:server:giveVehicleWithoutSaving', id, model)
+            else
+                local myid = GetPlayerServerId(PlayerId())
+                TriggerServerEvent('m3:admin:server:giveVehicleWithoutSaving', myid, model)
+            end
+        else
+            notify('error', 'Araç modeli boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('dv', function(source, args)
+    if havePermission('dv') then
+        local radius = args[1]
+        if radius ~= nil and radius ~= '' then
+            TriggerEvent('esx:deleteVehicle', radius)
+        else
+            TriggerEvent('esx:deleteVehicle', 5.0)
+        end
+    end
+end)
+
+RegisterCommand('giveitem', function(source, args)
+    if havePermission('giveitem') then
+        local id = args[1]
+        local itemname = args[2]
+        local itemcount = tonumber(args[3])
+
+        if id ~= nil or id ~= '' then
+            if itemname ~= nil or itemname ~= '' then
+                if itemcount == nil or itemcount == '' then
+                    TriggerServerEvent('m3:admin:server:giveItem', id, itemname, 1)
+                else
+                    TriggerServerEvent('m3:admin:server:giveItem', id, itemname, itemcount)
+                end
+            else
+                notify('error', 'İtem ismi boş olamaz!')
+            end
+        else
+            notify('error', 'ID kısmı boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('givemoney', function(source, args)
+    if havePermission('givemoney') then
+        local id = args[1]
+        local count = tonumber(args[2])
+
+        if count ~= nil or count ~= '' then
+            TriggerServerEvent('m3:admin:server:giveMoney', id, 'Nakit', count)
+        else
+            notify('error', 'Miktar kısmı boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('giveblack', function(source, args)
+    if havePermission('givemoney') then
+        local id = args[1]
+        local count = tonumber(args[2])
+
+        if count ~= nil or count ~= '' then
+            TriggerServerEvent('m3:admin:server:giveMoney', id, 'Karapara', count)
+        else
+            notify('error', 'Miktar kısmı boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('givebank', function(source, args)
+    if havePermission('givemoney') then
+        local id = args[1]
+        local count = tonumber(args[2])
+
+        if count ~= nil or count ~= '' then
+            TriggerServerEvent('m3:admin:server:giveMoney', id, 'Banka', count)
+        else
+            notify('error', 'Miktar kısmı boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('clearinventory', function(source, args)
+    if havePermission('openinv') then
+        local id = args[1]
+
+        if id ~= nil or id ~= '' then
+            TriggerServerEvent('m3:admin:server:clearInv', id)
+        else
+            TriggerServerEvent('m3:admin:server:clearInv', GetPlayerServerId(PlayerId()))
+        end
+    end
+end)
+
+RegisterCommand('idwipe', function(source, args)
+    if havePermission('wipeplayer') then
+        local id = args[1]
+
+        if id ~= nil and id ~= '' then
+            TriggerServerEvent('m3:admin:server:wipePlayer', id)
+        else
+            notify('error', 'ID kısmı boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('hexwipe', function(source, args)
+    if havePermission('wipeplayer') then
+        local hex = args[1]
+
+        if hex ~= nil and hex ~= '' then
+            TriggerServerEvent('m3:admin:server:wipePlayer', nil, hex)
+        else
+            notify('error', 'Steam hex kısmı boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('revive', function(source, args)
+    if havePermission('revive') then
+        local id = args[1]
+
+        if id ~= nil and id ~= '' then
+            TriggerServerEvent('m3:admin:server:revive', id)
+        else
+            TriggerServerEvent('m3:admin:server:selfRevive')
+        end
+    end
+end)
+
+RegisterCommand('heal', function(source, args)
+    if havePermission('heal') then
+        local id = args[1]
+
+        if id ~= nil and id ~= '' then
+            TriggerServerEvent('m3:admin:server:heal', id)
+        else
+            TriggerServerEvent('m3:admin:server:selfHeal')
+        end
+    end
+end)
+
+RegisterCommand('goto', function(source, args)
+    if havePermission('goto') then
+        local id = args[1]
+
+        if id ~= nil and id ~= '' then
+            TriggerServerEvent('m3:admin:server:goto', id)
+        else
+            notify('error', 'ID kısmı boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('bring', function(source, args)
+    if havePermission('bring') then
+        local id = args[1]
+
+        if id ~= nil and id ~= '' then
+            TriggerServerEvent('m3:admin:server:bring', id)
+        else
+            notify('error', 'ID kısmı boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('kick', function(source, args)
+    if havePermission('kick') then
+        local id = args[1]
+
+        if id ~= nil and id ~= '' then
+            TriggerServerEvent('m3:admin:server:kick', id, '')
+        else
+            notify('error', 'ID kısmı boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('ban', function(source, args)
+    if havePermission('ban') then
+        local id = args[1]
+
+        if id ~= nil and id ~= '' then
+            TriggerServerEvent('m3:admin:server:ban', id, '', 10444633200)
+        else
+            notify('error', 'ID kısmı boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('giveweapon', function(source, args)
+    if havePermission('giveweapon') then
+        local id = args[1]
+        local weaponname = args[2]
+        local weaponcount = args[3]
+
+        if id ~= nil and id ~= '' then
+            if weaponname ~= nil and weaponname ~= '' then
+                if string.match(weaponname, 'WEAPON_') then
+                    if weaponcount == '' and weaponcount == nil then
+                        TriggerServerEvent('m3:admin:server:giveWeapon', id, string.upper(weaponname), 1)
+                    else
+                        TriggerServerEvent('m3:admin:server:giveWeapon', id, string.upper(weaponname), weaponcount)
+                    end
+                else
+                    notify('error', 'Silah bulunamadı!')
+                end
+            else
+                notify('error', 'Silah ismi boş olamaz!')
+            end
+        else
+            notify('error', 'ID kısmı boş olamaz!')
+        end
+    end
+end)
+
+RegisterCommand('skin', function(source, args)
+    if havePermission('skin') then
+        local id = args[1]
+
+        if id ~= nil and id ~= '' then
+            TriggerServerEvent('m3:admin:server:skin', id)
+        else
+            TriggerServerEvent('m3:admin:server:skin', GetPlayerServerId(PlayerId()))
+        end
     end
 end)
